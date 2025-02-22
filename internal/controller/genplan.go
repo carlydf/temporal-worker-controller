@@ -25,7 +25,7 @@ type plan struct {
 	// Where to take actions
 
 	TemporalNamespace string
-	DeploymentSeries  string
+	DeploymentName    string
 
 	// Which actions to take
 
@@ -67,7 +67,7 @@ func (r *TemporalWorkerReconciler) generatePlan(
 ) (*plan, error) {
 	plan := plan{
 		TemporalNamespace: w.Spec.WorkerOptions.TemporalNamespace,
-		DeploymentSeries:  w.Spec.WorkerOptions.DeploymentSeries,
+		DeploymentName:    w.Spec.WorkerOptions.DeploymentName,
 		ScaleDeployments:  make(map[*v1.ObjectReference]uint32),
 	}
 
@@ -98,7 +98,7 @@ func (r *TemporalWorkerReconciler) generatePlan(
 			return nil, err
 		}
 
-		switch versionSet.Reachability {
+		switch versionSet.Reachability { // draining and drained + timestamps of when it drained
 		case temporaliov1alpha1.ReachabilityStatusReachable:
 			// Scale up reachable deployments
 			if d.Spec.Replicas != nil && *d.Spec.Replicas != *w.Spec.Replicas {
@@ -119,7 +119,7 @@ func (r *TemporalWorkerReconciler) generatePlan(
 			if d.Spec.Replicas != nil && *d.Spec.Replicas != closedOnlyReplicas {
 				plan.ScaleDeployments[versionSet.Deployment] = closedOnlyReplicas
 			}
-		case temporaliov1alpha1.ReachabilityStatusNotRegistered:
+		case temporaliov1alpha1.ReachabilityStatusNotRegistered: // TODO(carlydf): add time based deletion option here
 			// Delete unregistered deployments
 			plan.DeleteDeployments = append(plan.DeleteDeployments, d)
 		}
@@ -165,7 +165,7 @@ func (r *TemporalWorkerReconciler) generatePlan(
 						if _, ok := taskQueuesWithWorkflows[tq.Name]; !ok {
 							plan.startTestWorkflows = append(plan.startTestWorkflows, startWorkflowConfig{
 								workflowType: w.Spec.RolloutStrategy.Gate.WorkflowType,
-								workflowID:   getTestWorkflowID(plan.DeploymentSeries, tq.Name, targetVersion.BuildID),
+								workflowID:   getTestWorkflowID(plan.DeploymentName, tq.Name, targetVersion.BuildID),
 								buildID:      targetVersion.BuildID,
 								taskQueue:    tq.Name,
 							})
@@ -373,8 +373,8 @@ func newDeploymentWithoutOwnerRef(
 				Value: spec.WorkerOptions.TemporalNamespace,
 			},
 			v1.EnvVar{
-				Name:  "TEMPORAL_DEPLOYMENT_SERIES",
-				Value: spec.WorkerOptions.DeploymentSeries,
+				Name:  "TEMPORAL_DEPLOYMENT_NAME",
+				Value: spec.WorkerOptions.DeploymentName,
 			},
 			v1.EnvVar{
 				Name:  "WORKER_BUILD_ID",

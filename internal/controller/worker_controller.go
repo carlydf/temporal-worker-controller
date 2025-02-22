@@ -52,6 +52,8 @@ type TemporalWorkerReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.15.0/pkg/reconcile
+// TODO(carlydf) delete note: runs every interval or every time a watched resource changes. (listed above)
+// TODO(carlydf): add watching of temporal connection custom resource (may have issue)
 func (r *TemporalWorkerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 	l.Info("Running Reconcile loop")
@@ -75,9 +77,9 @@ func (r *TemporalWorkerReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		l.Error(err, "")
 		return ctrl.Result{}, err
 	}
-	// Set a default deployment series name
-	if workerDeploy.Spec.WorkerOptions.DeploymentSeries == "" {
-		err := fmt.Errorf("DeploymentSeries must be set")
+	// Set a default deployment name
+	if workerDeploy.Spec.WorkerOptions.DeploymentName == "" {
+		err := fmt.Errorf("DeploymentName must be set")
 		l.Error(err, "")
 		return ctrl.Result{}, err
 	}
