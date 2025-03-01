@@ -48,13 +48,24 @@ func (cp *ClientPool) GetWorkflowServiceClient(hostPort string) (workflowservice
 	return nil, false
 }
 
+func (cp *ClientPool) GetSDKClient(hostPort string) (client.Client, bool) {
+	cp.mux.RLock()
+	defer cp.mux.RUnlock()
+
+	c, ok := cp.clients[hostPort]
+	if ok {
+		return c, true
+	}
+	return nil, false
+}
+
 type NewClientOptions struct {
 	TemporalNamespace string
 	K8sNamespace      string
 	Spec              v1alpha1.TemporalConnectionSpec
 }
 
-func (cp *ClientPool) UpsertClient(ctx context.Context, opts NewClientOptions) (workflowservice.WorkflowServiceClient, error) {
+func (cp *ClientPool) UpsertClient(ctx context.Context, opts NewClientOptions) (client.Client, error) {
 	clientOpts := client.Options{
 		Logger:    cp.logger,
 		HostPort:  opts.Spec.HostPort,
@@ -116,7 +127,7 @@ func (cp *ClientPool) UpsertClient(ctx context.Context, opts NewClientOptions) (
 
 	cp.clients[opts.Spec.HostPort] = c
 
-	return c.WorkflowService(), nil
+	return c, nil
 }
 
 func (cp *ClientPool) Close() {

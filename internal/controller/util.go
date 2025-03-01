@@ -8,9 +8,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.temporal.io/api/deployment/v1"
 	"go.temporal.io/api/serviceerror"
-	"go.temporal.io/api/workflowservice/v1"
+	sdkclient "go.temporal.io/sdk/client"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"strings"
@@ -65,45 +64,22 @@ func newObjectRef(d *appsv1.Deployment) *v1.ObjectReference {
 	}
 }
 
-func describeWorkerDeploymentHandleNotFound(
-	ctx context.Context,
-	temporalClient workflowservice.WorkflowServiceClient,
-	req *workflowservice.DescribeWorkerDeploymentRequest) (*workflowservice.DescribeWorkerDeploymentResponse, error) {
-	describeResp, err := temporalClient.DescribeWorkerDeployment(ctx, req)
-
-	var notFoundErr *serviceerror.NotFound
-	if err != nil {
-		if errors.As(err, &notFoundErr) {
-			return &workflowservice.DescribeWorkerDeploymentResponse{
-				ConflictToken: nil,
-				WorkerDeploymentInfo: &deployment.WorkerDeploymentInfo{
-					Name:          req.GetDeploymentName(),
-					RoutingConfig: &deployment.RoutingConfig{CurrentVersion: "__unversioned__"},
-				},
-			}, nil
-		} else {
-			return nil, fmt.Errorf("unable to describe worker deployment %s: %w", req.GetDeploymentName(), err)
-		}
-	}
-	return describeResp, err
-}
-
 // TODO(carlydf): Cache describe success for versions that already exist
 // awaitVersionRegistration should be called after a poller starts polling with config of this version, since that is
 // what will register the version with the server. SetRamp and SetCurrent will fail if the version does not exist.
 func awaitVersionRegistration(
 	ctx context.Context,
-	temporalClient workflowservice.WorkflowServiceClient,
-	namespace, versionID string) error {
+	temporalClient sdkclient.Client,
+	versionID string) error {
+	workerDeploymentHandler := temporalClient.WorkerDeploymentClient().GetHandle(getDeploymentNameFromVersion(versionID))
 	ticker := time.NewTicker(1 * time.Second)
 	for {
 		select {
 		case <-ctx.Done():
 			return context.Canceled
 		case <-ticker.C:
-			_, err := temporalClient.DescribeWorkerDeploymentVersion(ctx, &workflowservice.DescribeWorkerDeploymentVersionRequest{
-				Namespace: namespace,
-				Version:   versionID,
+			_, err := workerDeploymentHandler.DescribeVersion(ctx, sdkclient.WorkerDeploymentDescribeVersionOptions{
+				Version: versionID,
 			})
 			var notFoundErr *serviceerror.NotFound
 			if err != nil {
@@ -115,26 +91,24 @@ func awaitVersionRegistration(
 			}
 			// After the version exists, confirm that it also exists in the worker deployment
 			// TODO(carlydf): Remove this check after next Temporal Cloud version which solves this inconsistency
-			return awaitVersionRegistrationInDeployment(ctx, temporalClient, namespace, versionID)
+			return awaitVersionRegistrationInDeployment(ctx, temporalClient, versionID)
 		}
 	}
 }
 
 func awaitVersionRegistrationInDeployment(
 	ctx context.Context,
-	temporalClient workflowservice.WorkflowServiceClient,
-	namespace, versionID string) error {
-	deploymentName, _, _ := strings.Cut(versionID, ".")
+	temporalClient sdkclient.Client,
+	versionID string) error {
+	deploymentName := getDeploymentNameFromVersion(versionID)
+	workerDeploymentHandler := temporalClient.WorkerDeploymentClient().GetHandle(deploymentName)
 	ticker := time.NewTicker(1 * time.Second)
 	for {
 		select {
 		case <-ctx.Done():
 			return context.Canceled
 		case <-ticker.C:
-			resp, err := temporalClient.DescribeWorkerDeployment(ctx, &workflowservice.DescribeWorkerDeploymentRequest{
-				Namespace:      namespace,
-				DeploymentName: deploymentName,
-			})
+			resp, err := workerDeploymentHandler.Describe(ctx, sdkclient.WorkerDeploymentDescribeOptions{})
 			var notFoundErr *serviceerror.NotFound
 			if err != nil {
 				if errors.As(err, &notFoundErr) {
@@ -143,11 +117,23 @@ func awaitVersionRegistrationInDeployment(
 					return fmt.Errorf("unable to describe worker deployment %s: %w", deploymentName, err)
 				}
 			}
-			for _, vs := range resp.GetWorkerDeploymentInfo().GetVersionSummaries() {
-				if vs.GetVersion() == versionID {
+			for _, vs := range resp.Info.VersionSummaries {
+				if vs.Version == versionID {
 					return nil
 				}
 			}
 		}
 	}
+}
+
+const versionSeparator = "."
+
+func getDeploymentNameFromVersion(v string) string {
+	deploymentName, _, _ := strings.Cut(v, versionSeparator)
+	return deploymentName
+}
+
+func getBuildIDFromVersion(v string) string {
+	_, buildID, _ := strings.Cut(v, versionSeparator)
+	return buildID
 }
