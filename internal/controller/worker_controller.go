@@ -95,7 +95,7 @@ func (r *TemporalWorkerReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// Get or update temporal client for connection
-	temporalClient, ok := r.TemporalClientPool.GetWorkflowServiceClient(temporalConnection.Spec.HostPort)
+	temporalClient, ok := r.TemporalClientPool.GetSDKClient(temporalConnection.Spec.HostPort)
 	if !ok {
 		c, err := r.TemporalClientPool.UpsertClient(ctx, clientpool.NewClientOptions{
 			K8sNamespace:      workerDeploy.Namespace,
