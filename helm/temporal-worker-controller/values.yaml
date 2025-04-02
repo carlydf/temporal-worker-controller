@@ -1,0 +1,41 @@
+namespace: temporal-system
+
+# Set to true for development environment with additional logging
+devEnv: false
+
+image:
+  repository: temporal-worker-controller
+  tag: latest
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  name: controller-manager
+  annotations: {}
+
+podAnnotations: {}
+  # Additional pod annotations can be added here
+  # example:
+  #   custom.annotation: value
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+metrics:
+  enabled: true
+  port: 8080
+
+leaderElection:
+  # Leader election should always be enabled in production.
+  enabled: true
+
+webhook:
+  enabled: true
+  port: 9443
+  certDir: /tmp/k8s-webhook-server/serving-certs
+
+terminationGracePeriodSeconds: 10 

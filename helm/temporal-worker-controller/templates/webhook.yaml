@@ -1,0 +1,121 @@
+{{- if .Values.webhook.enabled -}}
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ .Release.Name }}-mutating-webhook-configuration
+  labels:
+    app.kubernetes.io/component: webhook
+    app.kubernetes.io/created-by: worker-controller
+    app.kubernetes.io/part-of: worker-controller
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ .Release.Name }}-webhook-service
+      namespace: {{ .Values.namespace }}
+      path: /mutate-temporal-io-v1beta1-temporalconnection
+  failurePolicy: Fail
+  name: mtemporalconnection.kb.io
+  rules:
+  - apiGroups:
+    - temporal.io
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - temporalconnections
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ .Release.Name }}-webhook-service
+      namespace: {{ .Values.namespace }}
+      path: /mutate-temporal-io-v1beta1-workerdeployment
+  failurePolicy: Fail
+  name: mworkerdeployment.kb.io
+  rules:
+  - apiGroups:
+    - temporal.io
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - workerdeployments
+  sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ .Release.Name }}-validating-webhook-configuration
+  labels:
+    app.kubernetes.io/component: webhook
+    app.kubernetes.io/created-by: worker-controller
+    app.kubernetes.io/part-of: worker-controller
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ .Release.Name }}-webhook-service
+      namespace: {{ .Values.namespace }}
+      path: /validate-temporal-io-v1beta1-temporalconnection
+  failurePolicy: Fail
+  name: vtemporalconnection.kb.io
+  rules:
+  - apiGroups:
+    - temporal.io
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - temporalconnections
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ .Release.Name }}-webhook-service
+      namespace: {{ .Values.namespace }}
+      path: /validate-temporal-io-v1beta1-workerdeployment
+  failurePolicy: Fail
+  name: vworkerdeployment.kb.io
+  rules:
+  - apiGroups:
+    - temporal.io
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - workerdeployments
+  sideEffects: None
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-webhook-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/component: webhook
+    app.kubernetes.io/created-by: worker-controller
+    app.kubernetes.io/part-of: worker-controller
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: {{ .Values.webhook.port }}
+  selector:
+    control-plane: controller-manager
+{{- end }} 
