@@ -25,6 +25,8 @@ type VersionInfo struct {
 	DrainedSince  *time.Time
 	TaskQueues    []temporaliov1alpha1.TaskQueue
 	TestWorkflows []temporaliov1alpha1.WorkflowExecution
+	// If a version is drained and has no pollers, it is deletable.
+	IsDeletable bool
 }
 
 // TemporalWorkerState represents the state of a worker deployment in Temporal

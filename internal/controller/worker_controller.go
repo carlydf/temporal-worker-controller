@@ -172,6 +172,8 @@ func (r *TemporalWorkerDeploymentReconciler) Reconcile(ctx context.Context, req 
 		return ctrl.Result{}, err
 	}
 
+	fmt.Printf("\n\n Generated Plan: %+v \n\n", plan)
+
 	// Execute the plan, handling any errors
 	if err := r.executePlan(ctx, l, temporalClient, plan); err != nil {
 		return ctrl.Result{}, err

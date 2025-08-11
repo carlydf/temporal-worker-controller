@@ -5,6 +5,7 @@
 package planner
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -117,7 +118,9 @@ func getDeleteDeployments(
 			// NotRegistered versions are versions that the server doesn't know about.
 			// Only delete if it's not the target version.
 			if status.TargetVersion.VersionID != version.VersionID {
-				deleteDeployments = append(deleteDeployments, d)
+				fmt.Printf("NOT DELETING, BUT NORMALLY WOULD: target version = %s, version.VersionID = %s\n\n",
+					status.TargetVersion.VersionID, version.VersionID)
+				//deleteDeployments = append(deleteDeployments, d)
 			}
 		}
 	}

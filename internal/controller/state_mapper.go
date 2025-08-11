@@ -62,8 +62,12 @@ func (m *stateMapper) mapToStatus(targetVersionID string) *v1alpha1.TemporalWork
 	status.DeprecatedVersions = deprecatedVersions
 
 	// Set version count from temporal state (directly from VersionSummaries via Versions map)
-	status.VersionCount = int32(len(m.temporalState.Versions))
-
+	// TODO(carlydf): rename to "UndrainedVersionCount", possibly also include pollers
+	for _, v := range m.temporalState.Versions {
+		if v.Status != v1alpha1.VersionStatusDrained {
+			status.VersionCount++
+		}
+	}
 	return status
 }
 
