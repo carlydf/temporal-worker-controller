@@ -27,6 +27,8 @@ type VersionInfo struct {
 	TestWorkflows []temporaliov1alpha1.WorkflowExecution
 	// If a version is drained and has no pollers, it is deletable.
 	IsDeletable bool
+	// TODO(carlydf): what else makes us interested in whether a version has pollers? ->
+	// TODO(carlydf): How can we surface in a TWD's status (or ideally in the list of them) that it is in an unhappy state?
 }
 
 // TemporalWorkerState represents the state of a worker deployment in Temporal
